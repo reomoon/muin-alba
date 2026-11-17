@@ -1,0 +1,15 @@
+{
+  "name": "muinalba",
+  "version": "0.1.0",
+  "private": true,
+  "description": "우리동네무인알바 — 무인매장 사장님과 동네 알바 매칭 앱 (Supabase CLI·DB 테스트 도구)",
+  "scripts": {
+    "db:test": "node supabase/tests/run.mjs",
+    "db:push": "supabase db push --remote"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "@electric-sql/pglite-postgis": "0.2.16",
+    "supabase": "^3.2.0"
+  }
+}
