@@ -10,7 +10,11 @@
 
 ```
 muin-search/
-├─ app/                          Flutter 앱 (2단계)
+├─ app/                          Flutter 앱 (Android, 패키지 com.muinalba.app)
+│  ├─ .env.example               앱 설정값 예시 (.env 는 git 제외)
+│  ├─ lib/core/                  설정(env)·색(theme)·로그인 상태(app_session)·화면 이동(router)
+│  ├─ lib/features/              화면: auth · profile · neighborhood · home · splash
+│  └─ test/                      화면 이동 규칙 테스트
 ├─ supabase/
 │  ├─ config.toml                Supabase CLI 설정
 │  ├─ migrations/                DB 변경 이력 (파일명 순서대로 적용)
@@ -19,11 +23,19 @@ muin-search/
 │  │  ├─ …03_functions.sql       RLS 헬퍼 함수·트리거
 │  │  ├─ …04_rls.sql             권한(GRANT)·RLS 정책
 │  │  ├─ …05_storage.sql         사진 버킷·Storage 정책
-│  │  └─ …06_reference_data.sql  설정값·요금제 기능표·업종별 체크리스트
+│  │  ├─ …06_reference_data.sql  설정값·요금제 기능표·업종별 체크리스트
+│  │  └─ …100000_step2_…sql      동네 인증 저장·회원 탈퇴 준비 함수 (2단계)
+│  ├─ functions/                 Edge Functions (Deno)
+│  │  ├─ _shared/                공통: 응답·오류, 서버 클라이언트, 카카오 로컬 API
+│  │  ├─ neighborhood/           동네 인증 (좌표 → 행정동 → 저장)
+│  │  └─ delete-account/         회원 탈퇴 (사진 정리 → 계정 삭제)
 │  └─ tests/
 │     ├─ rls_check.sql           RLS 점검 (로컬·클라우드 SQL Editor 공용)
+│     ├─ step2_check.sql         2단계 점검 (동네 인증·회원 탈퇴)
 │     ├─ supabase_stubs.sql      로컬 테스트용 Supabase 흉내 (클라우드에 실행 금지)
-│     └─ run.mjs                 npm run db:test 실행기
+│     └─ run.mjs                 npm run db:test 실행기 (*_check.sql 전부 실행)
+├─ docs/
+│  └─ step2-setup.md             2단계 콘솔 설정 안내 (카카오·구글·Supabase·네이버 지도)
 └─ package.json                  Supabase CLI·테스트 도구 버전 고정
 ```
 
@@ -48,14 +60,29 @@ muin-search/
 npm install
 ```
 
+## 앱 실행
+
+1. `app/.env.example` 을 `app/.env` 로 복사하고 값 채우기 (Supabase Publishable key, 네이버 지도 Client ID)
+2. 에뮬레이터 켜기: `flutter emulators --launch Medium_Phone_API_37.0` (또는 Android Studio > Device Manager)
+3. VS Code 실행(F5) → 실행 구성 **우리동네무인알바** 선택
+   (터미널: `cd app` → `flutter run --dart-define-from-file=.env`)
+
+앱 점검: `cd app` → `flutter analyze` · `flutter test`
+
 ## DB 테스트 — 로컬 (Docker 불필요)
 
 ```
 npm run db:test
 ```
 
-메모리 안의 Postgres(PGlite + PostGIS)에 마이그레이션을 적용하고 `rls_check.sql`로 권한을 점검합니다.
+메모리 안의 Postgres(PGlite + PostGIS)에 마이그레이션을 적용하고 `tests/*_check.sql`로 권한과 함수를 점검합니다.
 auth·storage는 흉내낸 것이므로 최종 확인은 아래 클라우드 점검으로 합니다.
+
+Edge Function 타입 검사 (Deno 설치 불필요):
+
+```
+npx --yes deno@2 check --node-modules-dir=none --no-lock --no-config supabase/functions/neighborhood/index.ts supabase/functions/delete-account/index.ts
+```
 
 ## 클라우드 Supabase에 적용
 
@@ -65,6 +92,12 @@ auth·storage는 흉내낸 것이므로 최종 확인은 아래 클라우드 점
 3. `npx supabase link --project-ref <프로젝트 ID>` (대시보드 주소 `project/` 뒤의 영문)
 4. `npx supabase db push --remote` (CLI 3.x는 `--remote` 없으면 로컬 Docker DB로 보냄)
 5. SQL Editor에 `supabase/tests/rls_check.sql` 전체를 붙여넣고 Run → `✅ RLS 점검 통과`
+
+Edge Function 배포 (비밀값 `KAKAO_REST_API_KEY`는 대시보드 Edge Functions > Secrets에서 설정):
+
+```
+npx supabase functions deploy neighborhood delete-account --use-api
+```
 
 PowerShell에서 `npx`가 "스크립트를 실행할 수 없으므로…"로 막히면 한 번만:
 `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
@@ -79,7 +112,7 @@ PowerShell에서 `npx`가 "스크립트를 실행할 수 없으므로…"로 막
 ## 진행 단계
 
 - [x] 1단계: 프로젝트 구조, DB 스키마(마이그레이션), RLS
-- [ ] 2단계: 로그인 + 역할 선택 + 동네 인증
+- [x] 2단계: 로그인 + 역할 선택 + 동네 인증 (실제 폰에서 카카오·구글 로그인, 동네 인증, 모드 전환 확인)
 - [ ] 3단계: 매장 등록 + 공고 + 지원/매칭
 - [ ] 4단계: 근무 인증(사진·체크리스트) + 근무 기록
 - [ ] 5단계: 푸시 알림

@@ -44,8 +44,14 @@ for (const file of migrations) {
   await runFile(`migrations/${file}`, join(migrationsDir, file));
 }
 
-const results = await runFile('RLS 점검 (tests/rls_check.sql)', join(testsDir, 'rls_check.sql'));
-const last = results.at(-1)?.rows?.[0];
-console.log(`\n${last ? Object.values(last)[0] : '완료'}\n`);
+// 점검 스크립트: tests/*_check.sql 을 이름순으로 (각자 BEGIN … ROLLBACK)
+const checks = readdirSync(testsDir).filter((f) => f.endsWith('_check.sql')).sort();
+const messages = [];
+for (const file of checks) {
+  const results = await runFile(`점검 tests/${file}`, join(testsDir, file));
+  const last = results.at(-1)?.rows?.[0];
+  if (last) messages.push(Object.values(last)[0]);
+}
+console.log(`\n${messages.join('\n')}\n`);
 
 await db.close();

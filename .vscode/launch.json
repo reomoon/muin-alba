@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "우리동네무인알바",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "app",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file=.env"]
+    }
+  ]
+}
